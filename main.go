@@ -15,12 +15,12 @@ const GoogleDNS string = "https://dns.google.com/resolve"
 
 type DNSQuestion struct {
 	Name string `json:"name"`
-	Type int    `json:"type"`
+	Type uint16 `json:"type"`
 }
 
 type DNSAnswer struct {
 	Name string `json:"name"`
-	Type int    `json:"type"`
+	Type uint16 `json:"type"`
 	TTL  int    `json:"TTL"`
 	Data string `json:"data"`
 }
@@ -30,19 +30,25 @@ type DNSResponse struct {
 	Answers   []DNSAnswer   `json:"Answer"`
 }
 
-func setupRouter() *gin.Engine {
+type Router struct {
+	HTTPClient *http.Client
+}
+
+func newHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+	}
+}
+
+func (ro Router) setupRouter() *gin.Engine {
 	r := gin.Default()
 	r.GET("/dns/:domain/:qtype", func(c *gin.Context) {
 		domain := c.Param("domain")
 		qType := c.Param("qtype")
 
-		var httpClient = &http.Client{
-			Timeout: time.Second * 10,
-		}
-
 		dnsReq := fmt.Sprintf("%s?name=%s&type=%s", GoogleDNS, domain, qType)
 		log.Println("Requesting: ", dnsReq)
-		resp, err := httpClient.Get(dnsReq)
+		resp, err := ro.HTTPClient.Get(dnsReq)
 		if err != nil {
 			log.Println(err)
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -74,6 +80,9 @@ func setupRouter() *gin.Engine {
 }
 
 func main() {
-	r := setupRouter()
+	ro := Router{
+		HTTPClient: newHTTPClient(time.Second * 10),
+	}
+	r := ro.setupRouter()
 	r.Run() // listen and serve on 0.0.0.0:8080
 }
