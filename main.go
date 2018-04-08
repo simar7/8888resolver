@@ -11,13 +11,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const GoogleDNS string = "https://dns.google.com/resolve"
-
+// DNSQuestion is a DNS question struct with Name and Q-Type
 type DNSQuestion struct {
 	Name string `json:"name"`
 	Type uint16 `json:"type"`
 }
 
+// DNSAnswer is a DNS answer struct with Name, Q-Type, TTL and Data
 type DNSAnswer struct {
 	Name string `json:"name"`
 	Type uint16 `json:"type"`
@@ -25,11 +25,13 @@ type DNSAnswer struct {
 	Data string `json:"data"`
 }
 
+// DNSResponse amalgamates Questions and Answers slices
 type DNSResponse struct {
 	Questions []DNSQuestion `json:"Question"`
 	Answers   []DNSAnswer   `json:"Answer"`
 }
 
+// Router is the HTTP router
 type Router struct {
 	HTTPClient *http.Client
 }
@@ -40,42 +42,46 @@ func newHTTPClient(timeout time.Duration) *http.Client {
 	}
 }
 
+// GetDNS returns a DNSResponse of Questions and Answers
+func (ro Router) GetDNS(c *gin.Context) {
+	domain := c.Param("domain")
+	qType := c.Param("qtype")
+
+	dnsReq := fmt.Sprintf("%s?name=%s&type=%s", GoogleDNS, domain, qType)
+	log.Println("Requesting: ", dnsReq)
+	resp, err := ro.HTTPClient.Get(dnsReq)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
+	}
+
+	dnsResp := DNSResponse{}
+	err = json.Unmarshal(body, &dnsResp)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "internal server error",
+		})
+	}
+
+	// return answer back
+	c.JSON(http.StatusOK, dnsResp)
+}
+
 func (ro Router) setupRouter() *gin.Engine {
 	r := gin.Default()
-	r.GET("/dns/:domain/:qtype", func(c *gin.Context) {
-		domain := c.Param("domain")
-		qType := c.Param("qtype")
+	r.GET("/dns/:domain/:qtype", ro.GetDNS)
 
-		dnsReq := fmt.Sprintf("%s?name=%s&type=%s", GoogleDNS, domain, qType)
-		log.Println("Requesting: ", dnsReq)
-		resp, err := ro.HTTPClient.Get(dnsReq)
-		if err != nil {
-			log.Println(err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "internal server error",
-			})
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Println(err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "internal server error",
-			})
-		}
-
-		dnsResp := DNSResponse{}
-		err = json.Unmarshal(body, &dnsResp)
-		if err != nil {
-			log.Println(err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"message": "internal server error",
-			})
-		}
-
-		// return answer back
-		c.JSON(http.StatusOK, dnsResp)
-	})
 	return r
 }
 
