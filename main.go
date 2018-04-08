@@ -31,6 +31,11 @@ type DNSResponse struct {
 	Answers   []DNSAnswer   `json:"Answer"`
 }
 
+// DNSError returns back any errors that may have been encountered
+type DNSError struct {
+	Error string `json:"error"`
+}
+
 // Router is the HTTP router
 type Router struct {
 	HTTPClient *http.Client
@@ -52,26 +57,30 @@ func (ro Router) GetDNS(c *gin.Context) {
 	resp, err := ro.HTTPClient.Get(dnsReq)
 	if err != nil {
 		log.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal server error",
+		c.JSON(http.StatusInternalServerError, DNSError{
+			Error: "internal server error",
 		})
+		return
 	}
+
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal server error",
+		c.JSON(http.StatusInternalServerError, DNSError{
+			Error: "internal server error",
 		})
+		return
 	}
 
 	dnsResp := DNSResponse{}
 	err = json.Unmarshal(body, &dnsResp)
 	if err != nil {
 		log.Println(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "internal server error",
+		c.JSON(http.StatusInternalServerError, DNSError{
+			Error: "internal server error",
 		})
+		return
 	}
 
 	// return answer back
