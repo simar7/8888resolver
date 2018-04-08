@@ -58,7 +58,7 @@ func (ro Router) GetDNS(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, DNSError{
-			Error: "internal server error",
+			Error: http.StatusText(http.StatusInternalServerError),
 		})
 		return
 	}
@@ -68,7 +68,7 @@ func (ro Router) GetDNS(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, DNSError{
-			Error: "internal server error",
+			Error: http.StatusText(http.StatusInternalServerError),
 		})
 		return
 	}
@@ -78,7 +78,7 @@ func (ro Router) GetDNS(c *gin.Context) {
 	if err != nil {
 		log.Println(err)
 		c.JSON(http.StatusInternalServerError, DNSError{
-			Error: "internal server error",
+			Error: http.StatusText(http.StatusInternalServerError),
 		})
 		return
 	}

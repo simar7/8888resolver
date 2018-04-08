@@ -136,7 +136,7 @@ func TestGetDNS(t *testing.T) {
 func TestGetDNS_ErrorReachingResolver(t *testing.T) {
 	defer gock.Off()
 
-	gock.New(fmt.Sprintf("%s?name=%s&type=%s", GoogleDNS, "bad.url", "A")).ReplyError(errors.New("internal server error"))
+	gock.New(fmt.Sprintf("%s?name=%s&type=%s", GoogleDNS, "bad.url", "A")).ReplyError(errors.New(http.StatusText(http.StatusInternalServerError)))
 	ro := Router{
 		HTTPClient: newHTTPClient(time.Second * 10),
 	}
@@ -147,11 +147,14 @@ func TestGetDNS_ErrorReachingResolver(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	expected := DNSError{Error: "internal server error"}
+	expected := DNSError{Error: http.StatusText(http.StatusInternalServerError)}
 	actual := DNSError{}
 	err := json.Unmarshal(w.Body.Bytes(), &actual)
 	assert.NoError(t, err)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, expected, actual)
+
+	// Verify that we don't have pending mocks
+	assert.True(t, gock.IsDone())
 }
